@@ -1,8 +1,9 @@
-package app;
+package main.java.app;
 
-import gui.MainFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+
+import main.java.gui.MainFrame;
 
 /**
  * Main entry point untuk Aplikasi Ringkasan Buku Otomatis.

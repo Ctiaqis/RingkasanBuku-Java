@@ -1,4 +1,4 @@
-package model;
+package main.java.model;
 
 /**
  * Model class yang merepresentasikan sebuah Buku.
