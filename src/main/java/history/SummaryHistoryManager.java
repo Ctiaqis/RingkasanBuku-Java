@@ -1,214 +1,248 @@
 package history;
 
 import model.SummaryRecord;
-
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.nio.file.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 
 /**
- * Class untuk menyimpan, membaca, dan menghapus riwayat ringkasan.
+ * Manager untuk menyimpan dan memuat riwayat ringkasan dari file JSON lokal.
  *
- * Method yang dipakai oleh MainFrame dan HistoryDialog:
- * - save(SummaryRecord record)
- * - loadAll()
- * - delete(String id)
- * - clearAll()
+ * File disimpan di: [user home]/AplikasiRingkasan/history.json
+ *
+ * Konsep OOP:
+ * - Encapsulation : filePath dan records disimpan private
+ * - Single Responsibility : class ini hanya mengurus penyimpanan riwayat
  */
 public class SummaryHistoryManager {
 
-    private static final String DATA_FOLDER = "data";
-    private static final String HISTORY_FILE = "history.txt";
+    // === Encapsulation: field private ===
+    private final String filePath;
+    private List<SummaryRecord> records;
 
-    private final File historyFile;
+    private static final String APP_DIR = System.getProperty("user.home") +
+            File.separator + "AplikasiRingkasan";
+    private static final String FILENAME = "history.json";
 
+    // === Constructor ===
     public SummaryHistoryManager() {
-        File folder = new File(DATA_FOLDER);
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
-
-        this.historyFile = new File(folder, HISTORY_FILE);
-
-        try {
-            if (!historyFile.exists()) {
-                historyFile.createNewFile();
-            }
-        } catch (IOException e) {
-            System.err.println("Gagal membuat file history: " + e.getMessage());
-        }
+        this.filePath = APP_DIR + File.separator + FILENAME;
+        this.records = new ArrayList<>();
+        ensureDirectoryExists();
+        loadFromFile();
     }
 
+    // Constructor untuk testing (custom path)
+    public SummaryHistoryManager(String customPath) {
+        this.filePath = customPath;
+        this.records = new ArrayList<>();
+        loadFromFile();
+    }
+
+    // === Public methods ===
+
     /**
-     * Menyimpan satu record riwayat ke file.
+     * Menyimpan satu record baru ke riwayat.
+     * Record langsung di-persist ke file.
      */
-    public void save(SummaryRecord record) throws IOException {
-        if (record == null) {
-            return;
-        }
-
-        try (BufferedWriter writer = Files.newBufferedWriter(
-                historyFile.toPath(),
-                StandardCharsets.UTF_8,
-                java.nio.file.StandardOpenOption.CREATE,
-                java.nio.file.StandardOpenOption.APPEND)) {
-            writer.write(toLine(record));
-            writer.newLine();
-        }
+    public void save(SummaryRecord record) {
+        records.add(0, record); // tambah di awal (terbaru di atas)
+        persistToFile();
     }
 
     /**
-     * Membaca semua riwayat dari file.
+     * Mengambil semua riwayat (urutan terbaru dulu).
+     * Return defensive copy agar list internal tidak bisa diubah dari luar.
      */
     public List<SummaryRecord> loadAll() {
-        List<SummaryRecord> records = new ArrayList<>();
-
-        if (!historyFile.exists()) {
-            return records;
-        }
-
-        try (BufferedReader reader = Files.newBufferedReader(
-                historyFile.toPath(),
-                StandardCharsets.UTF_8)) {
-            String line;
-
-            while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty()) {
-                    continue;
-                }
-
-                SummaryRecord record = fromLine(line);
-                if (record != null) {
-                    records.add(record);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Gagal membaca history: " + e.getMessage());
-        }
-
-        return records;
-    }
-
-    /**
-     * Menghapus satu riwayat berdasarkan id.
-     */
-    public void delete(String id) throws IOException {
-        if (id == null || id.trim().isEmpty()) {
-            return;
-        }
-
-        List<SummaryRecord> records = loadAll();
-        records.removeIf(record -> id.equals(record.getId()));
-
-        rewriteFile(records);
+        return Collections.unmodifiableList(records);
     }
 
     /**
      * Menghapus semua riwayat.
      */
-    public void clearAll() throws IOException {
-        rewriteFile(new ArrayList<>());
+    public void clearAll() {
+        records.clear();
+        persistToFile();
     }
 
     /**
-     * Alias tambahan supaya aman kalau class lain memakai nama method berbeda.
+     * Menghapus satu record berdasarkan id.
      */
-    public void addHistory(SummaryRecord record) throws IOException {
-        save(record);
-    }
-
-    public List<SummaryRecord> getAllHistory() {
-        return loadAll();
+    public void delete(String id) {
+        records.removeIf(record -> record.getId().equals(id));
+        persistToFile();
     }
 
     /**
-     * Menulis ulang seluruh isi file history.
+     * Menghapus satu record berdasarkan index.
      */
-    private void rewriteFile(List<SummaryRecord> records) throws IOException {
-        try (BufferedWriter writer = Files.newBufferedWriter(
-                historyFile.toPath(),
-                StandardCharsets.UTF_8,
-                java.nio.file.StandardOpenOption.CREATE,
-                java.nio.file.StandardOpenOption.TRUNCATE_EXISTING)) {
-            for (SummaryRecord record : records) {
-                writer.write(toLine(record));
-                writer.newLine();
-            }
+    public void deleteAt(int index) {
+        if (index >= 0 && index < records.size()) {
+            records.remove(index);
+            persistToFile();
+        }
+    }
+
+    public int size() {
+        return records.size();
+    }
+
+    // === Private helper methods ===
+
+    private void ensureDirectoryExists() {
+        File dir = new File(APP_DIR);
+        if (!dir.exists()) {
+            dir.mkdirs();
         }
     }
 
     /**
-     * Mengubah SummaryRecord menjadi satu baris teks.
-     * Format:
-     * id|createdAt|bookTitleBase64|qualityBase64|methodBase64|summaryBase64
+     * Menyimpan semua records ke file JSON.
+     * Format JSON ditulis manual agar tidak perlu library tambahan.
      */
-    private String toLine(SummaryRecord record) {
-        return safe(record.getId()) + "|" +
-                safe(record.getCreatedAt().toString()) + "|" +
-                encode(record.getBookTitle()) + "|" +
-                encode(record.getQuality()) + "|" +
-                encode(record.getMethodUsed()) + "|" +
-                encode(record.getSummaryText());
+    private void persistToFile() {
+        try (BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(
+                        new FileOutputStream(filePath), StandardCharsets.UTF_8))) {
+
+            writer.write("[\n");
+            for (int i = 0; i < records.size(); i++) {
+                writer.write(records.get(i).toJson());
+                if (i < records.size() - 1)
+                    writer.write(",");
+                writer.newLine();
+            }
+            writer.write("]");
+
+        } catch (IOException e) {
+            System.err.println("Gagal menyimpan riwayat: " + e.getMessage());
+        }
     }
 
     /**
-     * Mengubah satu baris teks menjadi SummaryRecord.
+     * Memuat records dari file JSON saat startup.
+     * Parser JSON sederhana — menggunakan regex dasar.
      */
-    private SummaryRecord fromLine(String line) {
+    private void loadFromFile() {
+        File file = new File(filePath);
+        if (!file.exists())
+            return;
+
         try {
-            String[] parts = line.split("\\|", -1);
+            String content = new String(
+                    Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
+            records = parseJsonArray(content);
+        } catch (IOException e) {
+            System.err.println("Gagal memuat riwayat: " + e.getMessage());
+            records = new ArrayList<>();
+        }
+    }
 
-            if (parts.length != 6) {
-                return null;
+    /**
+     * Parser JSON array sederhana.
+     * Hanya menangani format yang dihasilkan oleh SummaryRecord.toJson().
+     */
+    private List<SummaryRecord> parseJsonArray(String json) {
+        List<SummaryRecord> result = new ArrayList<>();
+        if (json == null || json.trim().isEmpty())
+            return result;
+
+        // Pisahkan berdasarkan object JSON { ... }
+        int depth = 0;
+        int start = -1;
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '{') {
+                if (depth == 0)
+                    start = i;
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0 && start >= 0) {
+                    String obj = json.substring(start, i + 1);
+                    SummaryRecord record = parseJsonObject(obj);
+                    if (record != null)
+                        result.add(record);
+                    start = -1;
+                }
             }
+        }
+        return result;
+    }
 
-            String id = parts[0];
-            LocalDateTime createdAt = LocalDateTime.parse(parts[1]);
-            String bookTitle = decode(parts[2]);
-            String quality = decode(parts[3]);
-            String methodUsed = decode(parts[4]);
-            String summaryText = decode(parts[5]);
+    /** Parse satu JSON object menjadi SummaryRecord */
+    private SummaryRecord parseJsonObject(String obj) {
+        try {
+            String id = extractJsonString(obj, "id");
+            String bookTitle = extractJsonString(obj, "bookTitle");
+            String dateStr = extractJsonString(obj, "createdAt");
+            String quality = extractJsonString(obj, "quality");
+            String methodUsed = extractJsonString(obj, "methodUsed");
+            String summaryText = extractJsonString(obj, "summaryText");
 
-            return new SummaryRecord(
-                    id,
-                    bookTitle,
-                    createdAt,
-                    quality,
-                    methodUsed,
-                    summaryText);
+            LocalDateTime createdAt = dateStr != null
+                    ? LocalDateTime.parse(dateStr)
+                    : LocalDateTime.now();
+
+            if (id == null) id = java.util.UUID.randomUUID().toString();
+
+            return new SummaryRecord(id, bookTitle, createdAt, quality, methodUsed, summaryText);
         } catch (Exception e) {
-            System.err.println("Data history rusak / tidak valid: " + e.getMessage());
             return null;
         }
     }
 
-    private String encode(String value) {
-        if (value == null) {
-            value = "";
-        }
+    /** Ekstrak nilai string dari JSON dengan regex sederhana */
+    private String extractJsonString(String json, String key) {
+        String pattern = "\"" + key + "\":\\s*\"";
+        int idx = json.indexOf(pattern);
+        if (idx < 0)
+            return null;
 
-        return Base64.getEncoder().encodeToString(
-                value.getBytes(StandardCharsets.UTF_8));
+        int start = idx + pattern.length();
+        StringBuilder sb = new StringBuilder();
+        for (int i = start; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '\\' && i + 1 < json.length()) {
+                char next = json.charAt(i + 1);
+                switch (next) {
+                    case '"':
+                        sb.append('"');
+                        i++;
+                        break;
+                    case '\\':
+                        sb.append('\\');
+                        i++;
+                        break;
+                    case 'n':
+                        sb.append('\n');
+                        i++;
+                        break;
+                    case 'r':
+                        sb.append('\r');
+                        i++;
+                        break;
+                    case 't':
+                        sb.append('\t');
+                        i++;
+                        break;
+                    default:
+                        sb.append(c);
+                }
+            } else if (c == '"') {
+                break;
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
-    private String decode(String value) {
-        if (value == null || value.isEmpty()) {
-            return "";
-        }
-
-        return new String(
-                Base64.getDecoder().decode(value),
-                StandardCharsets.UTF_8);
-    }
-
-    private String safe(String value) {
-        return value == null ? "" : value;
+    // === Getter ===
+    public String getFilePath() {
+        return filePath;
     }
 }

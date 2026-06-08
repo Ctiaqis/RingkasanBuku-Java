@@ -112,4 +112,27 @@ public class SummaryRecord {
                ", methodUsed='" + methodUsed + '\'' +
                '}';
     }
+
+    /**
+     * Mengembalikan representasi JSON dari record ini.
+     */
+    public String toJson() {
+        return "{\n" +
+               "  \"id\": \"" + escapeJson(id) + "\",\n" +
+               "  \"bookTitle\": \"" + escapeJson(bookTitle) + "\",\n" +
+               "  \"createdAt\": \"" + createdAt.toString() + "\",\n" +
+               "  \"quality\": \"" + escapeJson(quality) + "\",\n" +
+               "  \"methodUsed\": \"" + escapeJson(methodUsed) + "\",\n" +
+               "  \"summaryText\": \"" + escapeJson(summaryText) + "\"\n" +
+               "}";
+    }
+
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+    }
 }
