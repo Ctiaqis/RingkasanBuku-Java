@@ -38,11 +38,20 @@ public class ApiBasedSummarizer implements Summarizer {
      * Implements method dari interface Summarizer.
      */
     @Override
-    public String summarize(String text) throws Exception {
-        if (text == null || text.trim().isEmpty()) {
-            throw new IllegalArgumentException("Teks tidak boleh kosong.");
+    public String summarize(String text, model.SummaryLength length) throws SummarizerException {
+        try {
+            if (text == null || text.trim().isEmpty()) {
+                throw new IllegalArgumentException("Teks tidak boleh kosong.");
+            }
+            // Tambahan prompt panjang kalimat ke API
+            String instruction = (length == model.SummaryLength.PENDEK) 
+                ? "Summarize the following text in exactly 2 sentences: " 
+                : "Summarize the following text in 3 to 4 sentences: ";
+            
+            return huggingFaceService.callSummarizationApi(instruction + text);
+        } catch (Exception e) {
+            throw new SummarizerException("API gagal membuat ringkasan", e);
         }
-        return huggingFaceService.callSummarizationApi(text);
     }
 
     @Override

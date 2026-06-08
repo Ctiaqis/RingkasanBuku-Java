@@ -24,29 +24,25 @@ public class RuleBasedSummarizer implements Summarizer {
 
     // Encapsulation: field private
     private final StopWordFilter stopWordFilter;
-    private int maxSentences;
 
     private static final Pattern SENTENCE_SPLIT = Pattern.compile("(?<=[.!?])\\s+");
     private static final Pattern NON_ALPHA = Pattern.compile("[^a-zA-Z0-9\\s]");
 
     public RuleBasedSummarizer() {
         this.stopWordFilter = new StopWordFilter();
-        this.maxSentences = 5; // default: ambil 5 kalimat terbaik
-    }
-
-    public RuleBasedSummarizer(int maxSentences) {
-        this.stopWordFilter = new StopWordFilter();
-        this.maxSentences = maxSentences;
     }
 
     /**
      * Merangkum teks menggunakan metode frekuensi kata.
      */
     @Override
-    public String summarize(String text) throws Exception {
-        if (text == null || text.trim().isEmpty()) {
-            throw new IllegalArgumentException("Teks tidak boleh kosong.");
-        }
+    public String summarize(String text, model.SummaryLength length) throws SummarizerException {
+        try {
+            if (text == null || text.trim().isEmpty()) {
+                throw new IllegalArgumentException("Teks tidak boleh kosong.");
+            }
+            
+            int maxSentences = (length == model.SummaryLength.PENDEK) ? 2 : 4;
 
         // Langkah 1: Pisahkan menjadi kalimat
         String[] sentences = splitIntoSentences(text);
@@ -62,7 +58,10 @@ public class RuleBasedSummarizer implements Summarizer {
         Map<Integer, Double> sentenceScores = scoreSentences(sentences, wordFrequency);
 
         // Langkah 6: Pilih kalimat dengan skor tertinggi
-        return buildSummary(sentences, sentenceScores);
+        return buildSummary(sentences, sentenceScores, maxSentences);
+        } catch (Exception e) {
+            throw new SummarizerException("Gagal merangkum dengan Rule-Based", e);
+        }
     }
 
     /**
@@ -135,7 +134,7 @@ public class RuleBasedSummarizer implements Summarizer {
      * Membangun teks ringkasan dari kalimat-kalimat dengan skor tertinggi.
      * Urutan kalimat dipertahankan sesuai teks asli.
      */
-    private String buildSummary(String[] sentences, Map<Integer, Double> sentenceScores) {
+    private String buildSummary(String[] sentences, Map<Integer, Double> sentenceScores, int maxSentences) {
         // Urutkan indeks kalimat berdasarkan skor (tertinggi dulu)
         List<Integer> sortedIndices = new ArrayList<>(sentenceScores.keySet());
         sortedIndices.sort((a, b) -> Double.compare(sentenceScores.get(b), sentenceScores.get(a)));
@@ -162,15 +161,5 @@ public class RuleBasedSummarizer implements Summarizer {
         return "Rule-Based Summarizer";
     }
 
-    // === Getter / Setter (Encapsulation) ===
-
-    public int getMaxSentences() {
-        return maxSentences;
-    }
-
-    public void setMaxSentences(int maxSentences) {
-        if (maxSentences > 0) {
-            this.maxSentences = maxSentences;
-        }
-    }
+    // dihapus: get/setMaxSentences
 }

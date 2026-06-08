@@ -15,10 +15,11 @@ public interface Summarizer {
      * Merangkum teks yang diberikan.
      *
      * @param text teks yang akan diringkas
+     * @param length panjang ringkasan yang diinginkan
      * @return hasil ringkasan
-     * @throws Exception jika terjadi error saat proses summarization
+     * @throws SummarizerException jika terjadi error saat proses summarization
      */
-    String summarize(String text) throws Exception;
+    String summarize(String text, model.SummaryLength length) throws SummarizerException;
 
     /**
      * Mendapatkan nama/label metode yang digunakan.

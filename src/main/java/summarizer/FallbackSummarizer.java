@@ -37,9 +37,9 @@ public class FallbackSummarizer implements Summarizer {
      * 2. Jika API gagal atau token kosong, gunakan RuleBasedSummarizer.
      */
     @Override
-    public String summarize(String text) throws Exception {
+    public String summarize(String text, model.SummaryLength length) throws SummarizerException {
         if (text == null || text.trim().isEmpty()) {
-            throw new IllegalArgumentException("Teks tidak boleh kosong.");
+            throw new SummarizerException("Teks tidak boleh kosong.");
         }
 
         // Langsung pakai rule-based jika token kosong atau dipaksa offline
@@ -48,13 +48,13 @@ public class FallbackSummarizer implements Summarizer {
             fallbackReason = forceOffline
                 ? "Mode Terbaik dipilih tetapi token API tidak tersedia."
                 : "Token API kosong — menggunakan mode offline.";
-            return ruleBasedSummarizer.summarize(text);
+            return ruleBasedSummarizer.summarize(text, length);
         }
 
         // Coba pakai API
         try {
             ApiBasedSummarizer apiSummarizer = new ApiBasedSummarizer(apiToken);
-            String result = apiSummarizer.summarize(text);
+            String result = apiSummarizer.summarize(text, length);
             usedFallback = false;
             return result;
         } catch (Exception e) {
@@ -62,7 +62,7 @@ public class FallbackSummarizer implements Summarizer {
             usedFallback   = true;
             fallbackReason = "API tidak merespons: " + e.getMessage()
                            + "\nBeralih ke mode offline (Rule-Based).";
-            return ruleBasedSummarizer.summarize(text);
+            return ruleBasedSummarizer.summarize(text, length);
         }
     }
 

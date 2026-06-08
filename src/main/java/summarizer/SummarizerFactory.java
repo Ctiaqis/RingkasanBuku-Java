@@ -1,5 +1,7 @@
 package summarizer;
 
+import model.SummaryQuality;
+
 /**
  * Factory class untuk membuat instance Summarizer yang sesuai
  * berdasarkan kualitas yang dipilih pengguna.
@@ -10,11 +12,6 @@ package summarizer;
  * - Polymorphism: create() mengembalikan tipe Summarizer (interface)
  */
 public class SummarizerFactory {
-
-    // === Konstanta kualitas ===
-    public static final String QUALITY_FAST     = "FAST";
-    public static final String QUALITY_BALANCED = "BALANCED";
-    public static final String QUALITY_BEST     = "BEST";
 
     // === Singleton ===
     private static SummarizerFactory instance;
@@ -49,28 +46,18 @@ public class SummarizerFactory {
     /**
      * Membuat dan mengembalikan Summarizer yang sesuai berdasarkan kualitas.
      *
-     * FAST     -> RuleBasedSummarizer (offline, cepat)
-     * BALANCED -> FallbackSummarizer  (coba API, fallback ke rule-based)
-     * BEST     -> ApiBasedSummarizer  (API saja, kualitas terbaik)
+     * CEPAT    -> RuleBasedSummarizer (offline, cepat)
+     * OTOMATIS -> FallbackSummarizer  (coba API, fallback ke rule-based)
      *
      * Polymorphism: semua kembalikan tipe Summarizer (interface).
      */
-    public Summarizer create(String quality) {
-        switch (quality) {
-            case QUALITY_FAST:
-                return new RuleBasedSummarizer();
-
-            case QUALITY_BEST:
-                if (apiToken.isEmpty()) {
-                    // Token tidak ada — fallback otomatis ke rule-based
-                    return new FallbackSummarizer("", true);
-                }
-                return new ApiBasedSummarizer(apiToken);
-
-            case QUALITY_BALANCED:
-            default:
-                // Coba API dulu; jika gagal atau token kosong, gunakan rule-based
-                return new FallbackSummarizer(apiToken, false);
+    public Summarizer create(SummaryQuality quality) {
+        if (quality == SummaryQuality.CEPAT) {
+            return new RuleBasedSummarizer();
+        } else {
+            // OTOMATIS
+            // Coba API dulu; jika gagal atau token kosong, gunakan rule-based
+            return new FallbackSummarizer(apiToken, false);
         }
     }
 }

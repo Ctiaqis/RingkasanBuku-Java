@@ -10,12 +10,15 @@ D:\RingkasanBuku-Java\src\main\java\history\SummaryHistoryManager.java
 D:\RingkasanBuku-Java\src\main\java\summarizer\FallbackSummarizer.java
 D:\RingkasanBuku-Java\src\main\java\app\MainApp.java
 D:\RingkasanBuku-Java\src\main\java\model\SummaryRecord.java
+D:\RingkasanBuku-Java\src\main\java\model\SummaryLength.java
 D:\RingkasanBuku-Java\src\main\java\gui\HistoryDialog.java
 D:\RingkasanBuku-Java\src\main\java\util\DateUtil.java
 D:\RingkasanBuku-Java\src\main\java\util\StatisticsCalculator.java
 D:\RingkasanBuku-Java\src\main\java\service\HuggingFaceService.java
 D:\RingkasanBuku-Java\src\main\java\summarizer\RuleBasedSummarizer.java
 D:\RingkasanBuku-Java\src\main\java\util\StopWordFilter.java
+D:\RingkasanBuku-Java\src\main\java\summarizer\SummarizerException.java
 D:\RingkasanBuku-Java\src\main\java\model\BookSummary.java
+D:\RingkasanBuku-Java\src\main\java\model\SummaryQuality.java
 D:\RingkasanBuku-Java\src\main\java\util\FileExporter.java
 D:\RingkasanBuku-Java\src\main\java\input\TextInputHandler.java
